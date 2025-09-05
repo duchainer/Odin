@@ -1,3 +1,4 @@
+#+build windows//, linux, darwin, wasm32//, wasm64p32
 package sys_windows
 
 import "core:c"

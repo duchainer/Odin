@@ -1,4 +1,4 @@
-#+build windows, linux, darwin
+#+build windows, linux, darwin, wasm32//, wasm64p32
 package nanovg_gl
 
 import "core:log"

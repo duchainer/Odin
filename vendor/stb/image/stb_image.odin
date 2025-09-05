@@ -70,7 +70,11 @@ when !NO_STDIO {
 		is_16_bit           :: proc(filename: cstring) -> b32 ---
 		is_16_bit_from_file :: proc(f: ^c.FILE)        -> b32 ---
 	}
-}
+}//  else {
+// 	load :: proc(filename: cstring, x, y, channels_in_file: ^c.int, desired_channels: c.int) -> [^]byte{
+// 		return nil
+// 	}
+// }
 
 @(default_calling_convention="c", link_prefix="stbi_")
 foreign stbi {

@@ -1,4 +1,5 @@
-#+build windows, linux, darwin
+#+build windows, linux, darwin, wasm32//, wasm64p32
+
 package nanovg
 
 // TODO rename structs to old nanovg style!
@@ -8,7 +9,9 @@ import "core:mem"
 import "core:math"
 import "core:fmt"
 import "../fontstash"
+
 import stbi "vendor:stb/image"
+_ :: stbi
 
 AlignVertical   :: fontstash.AlignVertical
 AlignHorizontal :: fontstash.AlignHorizontal
@@ -887,43 +890,47 @@ CurrentTransform :: proc(ctx: ^Context, xform: ^Matrix) {
 // The parameter imageFlags is a combination of flags defined in NVGimageFlags.
 ///////////////////////////////////////////////////////////
 
-// Creates image by loading it from the disk from specified file name.
-// Returns handle to the image.
-CreateImagePath :: proc(ctx: ^Context, filename: cstring, imageFlags: ImageFlags) -> int {
-	stbi.set_unpremultiply_on_load(1)
-	stbi.convert_iphone_png_to_rgb(1)
-	w, h, n: i32
-	img := stbi.load(filename, &w, &h, &n, 4)
-	
-	if img == nil {
-		return 0
+
+NO_STDIO :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
+when !NO_STDIO {
+	// Creates image by loading it from the disk from specified file name.
+	// Returns handle to the image.
+	CreateImagePath :: proc(ctx: ^Context, filename: cstring, imageFlags: ImageFlags) -> int {
+		stbi.set_unpremultiply_on_load(1)
+		stbi.convert_iphone_png_to_rgb(1)
+		w, h, n: i32
+		img := stbi.load(filename, &w, &h, &n, 4)
+
+		if img == nil {
+			return 0
+		}
+
+		data  := img[:int(w) * int(h) * int(n)]
+		image := CreateImageRGBA(ctx, int(w), int(h), imageFlags, data)
+		stbi.image_free(img)
+		return image
 	}
 
-	data  := img[:int(w) * int(h) * int(n)]
-	image := CreateImageRGBA(ctx, int(w), int(h), imageFlags, data)
-	stbi.image_free(img)
-	return image
-}
+	// Creates image by loading it from the specified chunk of memory.
+	// Returns handle to the image.
+	CreateImageMem :: proc(ctx: ^Context, data: []byte, imageFlags: ImageFlags) -> int {
+		stbi.set_unpremultiply_on_load(1)
+		stbi.convert_iphone_png_to_rgb(1)
+		w, h, n: i32
+		img := stbi.load_from_memory(raw_data(data), i32(len(data)), &w, &h, &n, 4)
 
-// Creates image by loading it from the specified chunk of memory.
-// Returns handle to the image.
-CreateImageMem :: proc(ctx: ^Context, data: []byte, imageFlags: ImageFlags) -> int {
-	stbi.set_unpremultiply_on_load(1)
-	stbi.convert_iphone_png_to_rgb(1)
-	w, h, n: i32
-	img := stbi.load_from_memory(raw_data(data), i32(len(data)), &w, &h, &n, 4)
-	
-	if img == nil {
-		return 0
+		if img == nil {
+			return 0
+		}
+
+		pixel_data := img[:int(w) * int(h) * int(n)]
+		image := CreateImageRGBA(ctx, int(w), int(h), imageFlags, pixel_data)
+		stbi.image_free(img)
+		return image
 	}
 
-	pixel_data := img[:int(w) * int(h) * int(n)]
-	image := CreateImageRGBA(ctx, int(w), int(h), imageFlags, pixel_data)
-	stbi.image_free(img)
-	return image
+	CreateImage :: proc{CreateImagePath, CreateImageMem}
 }
-
-CreateImage :: proc{CreateImagePath, CreateImageMem}
 
 // Creates image from specified image data.
 // Returns handle to the image.
