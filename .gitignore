@@ -302,3 +302,6 @@ misc/featuregen/featuregen
 .cache/
 .clangd
 compile_commands.json
+
+# Ignore binary executables
+/more-examples/nanovg/build/
