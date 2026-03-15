@@ -158,7 +158,7 @@ marshal_to_builder :: proc(b: ^strings.Builder, v: any, opt: ^Marshal_Options) -
 	return marshal_to_writer(strings.to_writer(b), v, opt)
 }
 
-marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: Marshal_Error) {
+marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options, field_path := "") -> (err: Marshal_Error) {
 	if v == nil {
 		io.write_string(w, "null") or_return
 		return
@@ -211,7 +211,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		case f16: io.write_f16(w, f) or_return
 		case f32: io.write_f32(w, f) or_return
 		case f64: io.write_f64(w, f) or_return
-		case: fmt.panicf("return .Unsupported_Type")
+		case: fmt.panicf("Unsupported_Type for field '%s': Float (unknown type)", field_path if field_path != "" else "<root>")
 		}
 
 	case runtime.Type_Info_Complex:
@@ -220,7 +220,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		case complex32:  r, i = f64(real(z)), f64(imag(z))
 		case complex64:  r, i = f64(real(z)), f64(imag(z))
 		case complex128: r, i = f64(real(z)), f64(imag(z))
-		case: fmt.panicf("return .Unsupported_Type")
+		case: fmt.panicf("Unsupported_Type for field '%s': Complex (unknown type)", field_path if field_path != "" else "<root>")
 		}
 
 		io.write_byte(w, '[')    or_return
@@ -230,7 +230,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_byte(w, ']')    or_return
 
 	case runtime.Type_Info_Quaternion:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Quaternion", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_String:
 		switch s in a {
@@ -250,45 +250,46 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_string(w, val ? "true" : "false") or_return
 
 	case runtime.Type_Info_Any:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Any", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Type_Id:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Type_Id", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Pointer:
 		if v.id == typeid_of(Null) {
 			io.write_string(w, "null") or_return
 		} else {
-			fmt.panicf("return .Unsupported_Type")
+			fmt.panicf("Unsupported_Type for field '%s': Pointer", field_path if field_path != "" else "<root>")
 		}
 
 	case runtime.Type_Info_Multi_Pointer:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Multi_Pointer", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Soa_Pointer:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Soa_Pointer", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Procedure:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Procedure", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Parameters:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Parameters", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Simd_Vector:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Simd_Vector", field_path if field_path != "" else "<root>")
 		
 	case runtime.Type_Info_Matrix:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Matrix", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Bit_Field:
-		fmt.panicf("return .Unsupported_Type")
+		fmt.panicf("Unsupported_Type for field '%s': Bit_Field", field_path if field_path != "" else "<root>")
 
 	case runtime.Type_Info_Array:
 		opt_write_start(w, opt, '[') or_return
 		for i in 0..<info.count {
 			opt_write_iteration(w, opt, i == 0) or_return
 			data := uintptr(v.data) + uintptr(i*info.elem_size)
-			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt) or_return
+			new_path := field_path == "" ? fmt.tprintf("[%d]", i) : fmt.tprintf("%s[%d]", field_path, i)
+			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt, new_path) or_return
 		}
 		opt_write_end(w, opt, ']') or_return
 		
@@ -307,7 +308,8 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			opt_write_iteration(w, opt, i == 0) or_return
 			opt_write_key(w, opt, enum_type.names[index]) or_return
 			data := uintptr(v.data) + uintptr(i*info.elem_size)
-			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt) or_return
+			new_path := field_path == "" ? enum_type.names[index] : fmt.tprintf("%s.%s", field_path, enum_type.names[index])
+			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt, new_path) or_return
 		}
 		opt_write_end(w, opt, '}') or_return
 		
@@ -317,7 +319,8 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		for i in 0..<array.len {
 			opt_write_iteration(w, opt, i == 0) or_return
 			data := uintptr(array.data) + uintptr(i*info.elem_size)
-			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt) or_return
+			new_path := field_path == "" ? fmt.tprintf("[%d]", i) : fmt.tprintf("%s[%d]", field_path, i)
+			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt, new_path) or_return
 		}
 		opt_write_end(w, opt, ']') or_return
 
@@ -327,7 +330,8 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		for i in 0..<slice.len {
 			opt_write_iteration(w, opt, i == 0) or_return
 			data := uintptr(slice.data) + uintptr(i*info.elem_size)
-			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt) or_return
+			new_path := field_path == "" ? fmt.tprintf("[%d]", i) : fmt.tprintf("%s[%d]", field_path, i)
+			marshal_to_writer(w, any{rawptr(data), info.elem.id}, opt, new_path) or_return
 		}
 		opt_write_end(w, opt, ']') or_return
 
@@ -337,7 +341,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 		if m != nil {
 			if info.map_info == nil {
-				fmt.panicf("return .Unsupported_Type")
+				fmt.panicf("Unsupported_Type for field '%s': Map (no map_info)", field_path if field_path != "" else "<root>")
 			}
 			map_cap := uintptr(runtime.map_cap(m^))
 			ks, vs, hs, _, _ := runtime.map_kvh_data_dynamic(m^, info.map_info)
@@ -373,11 +377,12 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 							name = strconv.write_bits_128(buf[:], u, 10, info.signed, 8*kti.size, "0123456789", nil)
 							
 							opt_write_key(w, opt, name) or_return
-						case: fmt.panicf("return .Unsupported_Type")
+						case: fmt.panicf("Unsupported_Type for field '%s': Map key must be string or integer", field_path if field_path != "" else "<root>")
 						}
 					}
 
-					marshal_to_writer(w, any{value, info.value.id}, opt) or_return
+					new_path := field_path == "" ? fmt.tprintf("[%s]", name) : fmt.tprintf("%s[%s]", field_path, name)
+					marshal_to_writer(w, any{value, info.value.id}, opt, new_path) or_return
 				}
 			} else {
 				Entry :: struct {
@@ -408,7 +413,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 							case cstring: name = string(s)
 							}
 
-						case: fmt.panicf("return .Unsupported_Type")
+						case: fmt.panicf("Unsupported_Type for field '%s': Map key must be string or integer", field_path if field_path != "" else "<root>")
 						}
 					}
 
@@ -420,7 +425,8 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 				for s, i in sorted {
 					opt_write_iteration(w, opt, i == 0) or_return
 					opt_write_key(w, opt, s.key) or_return
-					marshal_to_writer(w, s.value, opt) or_return
+					new_path := field_path == "" ? fmt.tprintf("[%s]", s.key) : fmt.tprintf("%s[%s]", field_path, s.key)
+					marshal_to_writer(w, s.value, opt, new_path) or_return
 				}
 			}
 		}
@@ -464,7 +470,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			return false
 		}
 
-		marshal_struct_fields :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: Marshal_Error) {
+		marshal_struct_fields :: proc(w: io.Writer, v: any, opt: ^Marshal_Options, field_path := "") -> (err: Marshal_Error) {
 			ti := runtime.type_info_base(type_info_of(v.id))
 			info := ti.variant.(runtime.Type_Info_Struct)
 			first_iteration := true
@@ -502,24 +508,25 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 				if json_name != "" {
 					opt_write_key(w, opt, json_name) or_return
+					new_path := field_path == "" ? json_name : fmt.tprintf("%s.%s", field_path, json_name)
+					marshal_to_writer(w, the_value, opt, new_path) or_return
 				} else {
 					// Marshal the fields of 'using _: T' fields directly into the parent struct
 					if info.usings[i] && name == "_" {
-						marshal_struct_fields(w, the_value, opt) or_return
+						marshal_struct_fields(w, the_value, opt, field_path) or_return
 						continue
 					} else {
 						opt_write_key(w, opt, name) or_return
+						new_path := field_path == "" ? name : fmt.tprintf("%s.%s", field_path, name)
+						marshal_to_writer(w, the_value, opt, new_path) or_return
 					}
 				}
-
-
-				marshal_to_writer(w, the_value, opt) or_return
 			}
 			return
 		}
 		
 		opt_write_start(w, opt, '{') or_return
-		marshal_struct_fields(w, v, opt) or_return
+		marshal_struct_fields(w, v, opt, field_path) or_return
 		opt_write_end(w, opt, '}') or_return
 
 	case runtime.Type_Info_Union:
@@ -552,17 +559,17 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			tag -= 1
 		}
 		id := info.variants[tag].id
-		return marshal_to_writer(w, any{v.data, id}, opt)
+		return marshal_to_writer(w, any{v.data, id}, opt, field_path)
 
 	case runtime.Type_Info_Enum:
 		if !opt.use_enum_names || len(info.names) == 0 {
-			return marshal_to_writer(w, any{v.data, info.base.id}, opt)
+			return marshal_to_writer(w, any{v.data, info.base.id}, opt, field_path)
 		} else {
 			name, found := reflect.enum_name_from_value_any(v)
 			if found {
-				return marshal_to_writer(w, name, opt)
+				return marshal_to_writer(w, name, opt, field_path)
 			} else {
-				return marshal_to_writer(w, any{v.data, info.base.id}, opt)
+				return marshal_to_writer(w, any{v.data, info.base.id}, opt, field_path)
 			}
 		}
 
