@@ -357,12 +357,12 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options, field_pat
 					key   := rawptr(runtime.map_cell_index_dynamic(ks, info.map_info.ks, bucket_index))
 					value := rawptr(runtime.map_cell_index_dynamic(vs, info.map_info.vs, bucket_index))
 
+					name: string
 					// check for string type
 					{
 						kv  := any{key, info.key.id}
 						kti := runtime.type_info_base(type_info_of(kv.id))
 						ka  := any{kv.data, kti.id}
-						name: string
 
 						#partial switch info in kti.variant {
 						case runtime.Type_Info_String:
