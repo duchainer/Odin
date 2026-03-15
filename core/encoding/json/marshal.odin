@@ -8,6 +8,7 @@ import "core:strings"
 import "core:reflect"
 import "core:io"
 import "core:slice"
+import "core:fmt"
 
 Marshal_Data_Error :: enum {
 	None,
@@ -210,7 +211,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		case f16: io.write_f16(w, f) or_return
 		case f32: io.write_f32(w, f) or_return
 		case f64: io.write_f64(w, f) or_return
-		case: return .Unsupported_Type
+		case: fmt.panicf("return .Unsupported_Type")
 		}
 
 	case runtime.Type_Info_Complex:
@@ -219,7 +220,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		case complex32:  r, i = f64(real(z)), f64(imag(z))
 		case complex64:  r, i = f64(real(z)), f64(imag(z))
 		case complex128: r, i = f64(real(z)), f64(imag(z))
-		case: return .Unsupported_Type
+		case: fmt.panicf("return .Unsupported_Type")
 		}
 
 		io.write_byte(w, '[')    or_return
@@ -229,7 +230,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_byte(w, ']')    or_return
 
 	case runtime.Type_Info_Quaternion:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_String:
 		switch s in a {
@@ -249,38 +250,38 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_string(w, val ? "true" : "false") or_return
 
 	case runtime.Type_Info_Any:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Type_Id:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Pointer:
 		if v.id == typeid_of(Null) {
 			io.write_string(w, "null") or_return
 		} else {
-			return .Unsupported_Type
+			fmt.panicf("return .Unsupported_Type")
 		}
 
 	case runtime.Type_Info_Multi_Pointer:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Soa_Pointer:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Procedure:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Parameters:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Simd_Vector:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 		
 	case runtime.Type_Info_Matrix:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Bit_Field:
-		return .Unsupported_Type
+		fmt.panicf("return .Unsupported_Type")
 
 	case runtime.Type_Info_Array:
 		opt_write_start(w, opt, '[') or_return
@@ -336,7 +337,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 		if m != nil {
 			if info.map_info == nil {
-				return .Unsupported_Type
+				fmt.panicf("return .Unsupported_Type")
 			}
 			map_cap := uintptr(runtime.map_cap(m^))
 			ks, vs, hs, _, _ := runtime.map_kvh_data_dynamic(m^, info.map_info)
@@ -372,7 +373,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 							name = strconv.write_bits_128(buf[:], u, 10, info.signed, 8*kti.size, "0123456789", nil)
 							
 							opt_write_key(w, opt, name) or_return
-						case: return .Unsupported_Type
+						case: fmt.panicf("return .Unsupported_Type")
 						}
 					}
 
@@ -407,7 +408,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 							case cstring: name = string(s)
 							}
 
-						case: return .Unsupported_Type
+						case: fmt.panicf("return .Unsupported_Type")
 						}
 					}
 
